@@ -21,9 +21,9 @@
    qmk_firmware/ qmk/
 
    $ cd qmk/keyboards
-   $ ln -s ../../qmk_keymaps/q1 keychron/q1/ansi_encoder/keymaps/ten
-   $ ln -s ../../qmk_keymaps/q2 keychron/q2/ansi_encoder/keymaps/ten
-   $ ln -s ../../qmk_keymaps/gmmk_pro gmmk/pro/rev2/ansi/keymaps/ten
+   $ ln -s $(realpath ../../qmk_keymaps/q1) keychron/q1/ansi_encoder/keymaps/ten
+   $ ln -s $(realpath ../../qmk_keymaps/q2) keychron/q2/ansi_encoder/keymaps/ten
+   $ ln -s $(realpath ../../qmk_keymaps/gmmk_pro) gmmk/pro/rev2/ansi/keymaps/ten
    $ cd ..
    ```
 
