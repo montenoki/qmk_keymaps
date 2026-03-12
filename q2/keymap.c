@@ -1,5 +1,13 @@
 #include QMK_KEYBOARD_H
 
+// ============================================================
+// 层定义
+// 共 8 层：Mac 和 Windows 各一套基础层 + 三个功能层
+//   MAC_BASE / WIN_BASE : 默认打字层（通过键盘侧面拨片切换）
+//   M_CAP   / W_CAP    : 按住 Caps Lock 激活，导航 + 编辑层
+//   M_FN    / W_FN     : 按住右侧第一个 Fn 键激活，媒体 + RGB 控制层
+//   M_DOT   / W_DOT    : 按住右侧第二个 Fn 键激活，F 键 + 缩放层
+// ============================================================
 enum layers{
 
     MAC_BASE,
@@ -14,24 +22,42 @@ enum layers{
     W_DOT
 };
 
+// ============================================================
+// 自定义键码
+// VIA 启用时从 USER00 开始编号，否则从 SAFE_RANGE 开始，
+// 避免与 QMK 内置键码冲突。
+// ============================================================
 enum custom_keycodes {
 #ifdef VIA_ENABLE
     KC_MISSION_CONTROL = USER00,
 #else
     KC_MISSION_CONTROL = SAFE_RANGE,
 #endif
-    KC_LAUNCHPAD,
-    KC_TASK,
-    KC_FLXP,
-    NEW_LINE
+    KC_LAUNCHPAD,   // macOS Launchpad
+    KC_TASK,        // Windows 任务视图（Win+Tab）
+    KC_FLXP,        // Windows 文件管理器（Win+E）
+    NEW_LINE        // 跳到行尾后换行（End + Enter）
 };
 
+// ============================================================
+// 宏别名
+// KC_WAVE : ~ 波浪号（Shift + `）
+// KC_MCTL : Mission Control 的简写
+// KC_LPAD : Launchpad 的简写
+// ============================================================
 #define KC_WAVE S(KC_GRV)
 #define KC_MCTL KC_MISSION_CONTROL
 #define KC_LPAD KC_LAUNCHPAD
 
 const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
 
+    // ========================================================
+    // MAC_BASE：Mac 默认层
+    // 与标准 65% 布局的差异：
+    //   - Caps Lock → MO(M_CAP)：按住激活导航编辑层，单击无效
+    //   - 右侧多出两个 Fn 键（MO(M_FN) / MO(M_DOT)）
+    //   - 旋钮（Encoder）映射到矩阵 R0 最右三格：音量+、静音、音量-
+    // ========================================================
     [MAC_BASE] = LAYOUT_all(
     //      C0        C1        C2        C3        C4        C5        C6        C7        C8        C9        C10       C11       C12       C13       C14
     // R0┌─────────┬─────────┬─────────┬─────────┬─────────┬─────────┬─────────┬─────────┬─────────┬─────────┬─────────┬─────────┬─────────┬─────────┬─────────┐
@@ -46,6 +72,13 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
           KC_LCTL,  KC_LOPT,  KC_LCMD,                            KC_SPC,                           KC_RCMD,  MO(M_FN),MO(M_DOT), KC_LEFT,  KC_DOWN,  KC_RGHT),
     //   └─────────┴─────────┴─────────┴───────────────────────────────────────────────────────────┴─────────┴─────────┴─────────┴─────────┴─────────┴─────────┘
 
+    // ========================================================
+    // WIN_BASE：Windows 默认层
+    // 与 MAC_BASE 的差异：
+    //   - KC_LOPT → KC_LGUI（左 Win 键）
+    //   - KC_LCMD → KC_LALT（左 Alt）
+    //   - Caps Lock 同样映射为 MO(W_CAP)
+    // ========================================================
     [WIN_BASE] = LAYOUT_all(
     //      C0        C1        C2        C3        C4        C5        C6        C7        C8        C9        C10       C11       C12       C13       C14
     // R0┌─────────┬─────────┬─────────┬─────────┬─────────┬─────────┬─────────┬─────────┬─────────┬─────────┬─────────┬─────────┬─────────┬─────────┬─────────┐
@@ -60,6 +93,30 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
           KC_LCTL,  KC_LGUI,  KC_LALT,                            KC_SPC,                           KC_RCMD,  MO(W_FN),MO(W_DOT), KC_LEFT,  KC_DOWN,  KC_RGHT),
     //   └─────────┴─────────┴─────────┴───────────────────────────────────────────────────────────┴─────────┴─────────┴─────────┴─────────┴─────────┴─────────┘
 
+    // ========================================================
+    // M_CAP：Mac 导航编辑层（按住 Caps Lock 激活）
+    // 核心设计：手不离开主键区完成所有光标 / 文本编辑操作。
+    //
+    // 数字行：
+    //   ESC→`  1-0→F1-F10  -→F11  =→F12  Backspace→Delete
+    //   旋钮：Cmd+-（缩小）/ Cmd+0（重置）/ Cmd+= （放大）
+    //
+    // QWERTY 行（光标 + 删除）：
+    //   W→退格  E→↑  R→前向删除(Delete)  T→行首(Home)
+    //   Y→上翻页  U→按词退格(Opt+Backspace)
+    //   I→向上选择(Shift+↑)  O→按词前删(Opt+Delete)
+    //
+    // ASDF 行（移动 + 选择，Mac 用 Opt 跳词）：
+    //   A→按词左跳  S→←  D→↓  F→→  G→按词右跳
+    //   H→按词向左选  J→向左选  K→向下选  L→向右选  ;→按词向右选
+    //   Enter→NEW_LINE（行尾换行）
+    //
+    // ZXCV 行：
+    //   C→终端复制(Ctrl+Shift+C)  V→终端粘贴(Ctrl+Shift+V)
+    //   B→行尾(End)  N→下翻页
+    //
+    // 空格行：Space→Enter（快速确认）
+    // ========================================================
     [M_CAP] = LAYOUT_all(
     //      C0        C1        C2        C3        C4        C5        C6        C7        C8        C9        C10       C11       C12       C13       C14
     // R0┌─────────┬─────────┬─────────┬─────────┬─────────┬─────────┬─────────┬─────────┬─────────┬─────────┬─────────┬─────────┬─────────┬─────────┬─────────┐
@@ -74,6 +131,17 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
           _______,  _______,  _______,                            KC_ENT,                           _______,  _______,  _______,  _______,  _______,  _______),
     //   └─────────┴─────────┴─────────┴───────────────────────────────────────────────────────────┴─────────┴─────────┴─────────┴─────────┴─────────┴─────────┘
 
+    // ========================================================
+    // W_CAP：Windows 导航编辑层（按住 Caps Lock 激活）
+    // 与 M_CAP 完全相同，仅跳词修饰键从 Opt(Alt) 改为 Ctrl
+    // （Windows 用 Ctrl+Left/Right 跳词，Mac 用 Opt+Left/Right）
+    //
+    // 差异键：
+    //   U→Ctrl+Backspace（按词退格）  O→Ctrl+Delete（按词前删）
+    //   A→Ctrl+Left（按词左跳）       G→Ctrl+Right（按词右跳）
+    //   H→Ctrl+Shift+Left（按词向左选）
+    //   ;→Ctrl+Shift+Right（按词向右选）
+    // ========================================================
     [W_CAP] = LAYOUT_all(
     //      C0        C1        C2        C3        C4        C5        C6        C7        C8        C9        C10       C11       C12       C13       C14
     // R0┌─────────┬─────────┬─────────┬─────────┬─────────┬─────────┬─────────┬─────────┬─────────┬─────────┬─────────┬─────────┬─────────┬─────────┬─────────┐
@@ -88,6 +156,26 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
           _______,  _______,  _______,                            KC_ENT,                           _______,  _______,  _______,  _______,  _______,  _______),
     //   └─────────┴─────────┴─────────┴───────────────────────────────────────────────────────────┴─────────┴─────────┴─────────┴─────────┴─────────┴─────────┘
 
+    // ========================================================
+    // M_FN：Mac 功能层（按住右侧第一个 Fn 键激活）
+    //
+    // 数字行：
+    //   ESC→Ctrl+`（终端切换标签）
+    //   1→屏幕亮度-   2→屏幕亮度+
+    //   3→Mission Control  4→Launchpad
+    //   5→RGB亮度-  6→RGB亮度+
+    //   7→上一曲  8→播放/暂停  9→下一曲
+    //   0→静音  -→音量-  =→音量+
+    //   Backspace→Option+Cmd+Esc（强制退出对话框）
+    //   旋钮：音量+/ 静音 / 音量-
+    //
+    // QWERTY 行（RGB 控制）：
+    //   Tab→RGB开关  Q→RGB模式+  W→RGB亮度+  E→色相+  R→饱和度+  T→速度+
+    //   PageUp→RESET（进入刷固件模式）
+    //
+    // ASDF 行（RGB 控制续）：
+    //   A→RGB模式-  S→RGB亮度-  D→色相-  F→饱和度-  G→速度-
+    // ========================================================
     [M_FN] = LAYOUT_all(
     //      C0        C1        C2        C3        C4        C5        C6        C7        C8        C9        C10       C11       C12       C13       C14
     // R0┌─────────┬─────────┬─────────┬─────────┬─────────┬─────────┬─────────┬─────────┬─────────┬─────────┬─────────┬─────────┬─────────┬─────────┬─────────┐
@@ -102,6 +190,13 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
           _______,  _______,  _______,                            _______,                           _______,  _______,  _______,  _______,  _______,  _______),
     //   └─────────┴─────────┴─────────┴───────────────────────────────────────────────────────────┴─────────┴─────────┴─────────┴─────────┴─────────┴─────────┘
 
+    // ========================================================
+    // W_FN：Windows 功能层（按住右侧第一个 Fn 键激活）
+    // 与 M_FN 基本一致，以下键不同：
+    //   3→KC_TASK（Win+Tab，任务视图）
+    //   4→KC_FLXP（Win+E，文件管理器）
+    //   Backspace→Ctrl+Alt+Del（任务管理器 / 锁屏入口）
+    // ========================================================
     [W_FN] = LAYOUT_all(
     //      C0        C1        C2        C3        C4        C5        C6        C7        C8        C9        C10       C11       C12       C13       C14
     // R0┌─────────┬─────────┬─────────┬─────────┬─────────┬─────────┬─────────┬─────────┬─────────┬─────────┬─────────┬─────────┬─────────┬─────────┬─────────┐
@@ -116,6 +211,16 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
           _______,  _______,  _______,                            _______,                           _______,  _______,  _______,  _______,  _______,  _______),
     //   └─────────┴─────────┴─────────┴───────────────────────────────────────────────────────────┴─────────┴─────────┴─────────┴─────────┴─────────┴─────────┘
 
+    // ========================================================
+    // M_DOT：Mac F 键 / 缩放层（按住右侧第二个 Fn 键激活）
+    //
+    // 数字行：
+    //   ESC→~（波浪号）
+    //   1-0 → F1-F10  - → F11  = → F12
+    //   Backspace → Delete
+    //   旋钮：Cmd+=（放大）/ Cmd+0（重置）/ Cmd+-（缩小）
+    // 其余键全部透传底层（_______）
+    // ========================================================
     [M_DOT] = LAYOUT_all(
     //      C0        C1        C2        C3        C4        C5        C6        C7        C8        C9        C10       C11       C12       C13       C14
     // R0┌─────────┬─────────┬─────────┬─────────┬─────────┬─────────┬─────────┬─────────┬─────────┬─────────┬─────────┬─────────┬─────────┬─────────┬─────────┐
@@ -130,6 +235,9 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
           _______,  _______,  _______,                            _______,                           _______,  _______,  _______,  _______,  _______,  _______),
     //   └─────────┴─────────┴─────────┴───────────────────────────────────────────────────────────┴─────────┴─────────┴─────────┴─────────┴─────────┴─────────┘
 
+    // ========================================================
+    // W_DOT：Windows F 键 / 缩放层（与 M_DOT 完全相同）
+    // ========================================================
     [W_DOT] = LAYOUT_all(
     //      C0        C1        C2        C3        C4        C5        C6        C7        C8        C9        C10       C11       C12       C13       C14
     // R0┌─────────┬─────────┬─────────┬─────────┬─────────┬─────────┬─────────┬─────────┬─────────┬─────────┬─────────┬─────────┬─────────┬─────────┬─────────┐
@@ -144,12 +252,26 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
           _______,  _______,  _______,                            _______,                           _______,  _______,  _______,  _______,  _______,  _______)
     //   └─────────┴─────────┴─────────┴───────────────────────────────────────────────────────────┴─────────┴─────────┴─────────┴─────────┴─────────┴─────────┘
 };
+
+// ============================================================
+// RGB 指示灯：Caps Lock 开启时全键盘变红
+// IS_HOST_LED_ON 检测系统当前的 Caps Lock 状态
+// ============================================================
 void rgb_matrix_indicators_advanced_user(uint8_t led_min, uint8_t led_max) {
 
 	if (IS_HOST_LED_ON(USB_LED_CAPS_LOCK)) {
         rgb_matrix_set_color_all(255, 0, 0);
     }
 }
+
+// ============================================================
+// 旋钮（Encoder）支持
+// Q2 有 1 个旋钮，顺时针 / 逆时针分别映射到矩阵虚拟键位：
+//   顺时针（CW） → R4 C8（实际键码由当前激活层决定）
+//   逆时针（CCW）→ R4 C7
+// 旋钮事件通过伪造 keyevent 注入 QMK 按键处理流水线，
+// 使其与普通按键共享同一套层逻辑（无需单独判断层）。
+// ============================================================
 #if defined(ENCODER_ENABLE)
 
 #define ENCODERS 1
@@ -163,6 +285,7 @@ void encoder_action_register(uint8_t index, bool clockwise) {
         .pressed = true,
         .time = (timer_read() | 1)
     };
+    // bit0 = 逆时针标记，bit1 = 顺时针标记
     encoder_state[index] = (clockwise ^ 1) | (clockwise << 1);
     action_exec(encoder_event);
 }
@@ -192,28 +315,38 @@ bool encoder_update_user(uint8_t index, bool clockwise) {
 
 #endif
 
+// ============================================================
+// 自定义键码处理
+// ============================================================
 bool process_record_user(uint16_t keycode, keyrecord_t *record) {
     switch (keycode) {
         case NEW_LINE:
-        if (record->event.pressed) {
-            SEND_STRING(SS_TAP(X_END) SS_TAP(X_ENT));
-        }
-        return false;  // Skip all further processing of this key
+            // 行尾换行：先跳到行尾，再按 Enter，常用于 IDE 插入新行
+            if (record->event.pressed) {
+                SEND_STRING(SS_TAP(X_END) SS_TAP(X_ENT));
+            }
+            return false;
+
         case KC_MISSION_CONTROL:
+            // 0x29F 是 macOS Mission Control 的 HID Consumer 控制码
             if (record->event.pressed) {
                 host_consumer_send(0x29F);
             } else {
                 host_consumer_send(0);
             }
-            return false;  // Skip all further processing of this key
+            return false;
+
         case KC_LAUNCHPAD:
+            // 0x2A0 是 macOS Launchpad 的 HID Consumer 控制码
             if (record->event.pressed) {
                 host_consumer_send(0x2A0);
             } else {
                 host_consumer_send(0);
             }
-            return false;  // Skip all further processing of this key
+            return false;
+
         case KC_TASK:
+            // Windows 任务视图：Win + Tab
             if (record->event.pressed) {
                 register_code(KC_LWIN);
                 register_code(KC_TAB);
@@ -221,8 +354,10 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
                 unregister_code(KC_LWIN);
                 unregister_code(KC_TAB);
             }
-            return false;  // Skip all further processing of this key
+            return false;
+
         case KC_FLXP:
+            // Windows 文件管理器：Win + E
             if (record->event.pressed) {
                 register_code(KC_LWIN);
                 register_code(KC_E);
@@ -230,8 +365,9 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
                 unregister_code(KC_LWIN);
                 unregister_code(KC_E);
             }
-            return false;  // Skip all further processing of this key
+            return false;
+
         default:
-            return true;  // Process all other keycodes normally
+            return true;
     }
 }
