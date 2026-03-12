@@ -1,4 +1,4 @@
-# keychron
+# Ten's QMK Keymaps
 
 ## How to build
 
@@ -14,11 +14,11 @@
    $ git clone https://github.com/qmk/qmk_firmware.git --depth 1 --recurse-submodules --shallow-submodules qmk
    ```
 
-3. Create a symbolic link to this `keyball/` directory from [qmk/qmk_firmware]'s `keyboards/` directory.
+3. Create a symbolic link to this directory from [qmk/qmk_firmware]'s `keyboards/` directory.
 
    ```console
    $ ls
-   keychron/ qmk/
+   qmk_firmware/ qmk/
 
    $ cd qmk/keyboards
    $ ln -s ../../qmk_keymaps/q1 keychron/q1/ansi_encoder/keymaps/ten
@@ -27,7 +27,7 @@
    $ cd ..
    ```
 
-4. `make` your Keyball firmware.
+4. `make` your firmware.
 
    ```console
    # Build q1 firmware
