@@ -31,10 +31,10 @@
 
    ```console
    # Build q1 firmware
-   $ make keychron/q1/ten
+   $ make keychron/q1/ansi_encoder:ten:flash
 
    # Build q2 firmware
-   $ make keychron/q1/ten
+   $ make keychron/q2/ansi_encoder:ten:flash
 
    # Build q2 firmware
    $ make gmmk/pro/ten
